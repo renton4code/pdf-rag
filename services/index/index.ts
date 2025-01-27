@@ -18,14 +18,15 @@ const server = Bun.serve({
 
     // Forward file to marker server
     const markerFormData = new FormData();
-    markerFormData.append("force_ocr", "true");
+    // TODO: solve timeout issue when OCR is enabled
+    markerFormData.append("force_ocr", "false");
     markerFormData.append("paginate_output", "true");
     markerFormData.append("output_format", "markdown");
     markerFormData.append("file", fileEntry);
 
     const markerResponse = await fetch("http://localhost:8001/marker/upload", {
       method: "POST",
-      body: markerFormData,
+      body: markerFormData
     });
 
     const { output, success } = await markerResponse.json();
@@ -83,12 +84,12 @@ const server = Bun.serve({
           chunk_id: `${document_id}_${Bun.randomUUIDv7()}`,
           page_id,
           chunk_text: cleanedChunk,
-          chunk_embedding: embeddingsRaw,
+          chunk_embedding: Array.from(embeddingsRaw) as number[],
         }
       })
     );
 
-    console.log("Generated embeddings for all chunks:", allEmbeddings);
+    console.log("Generated embeddings for all chunks:", allEmbeddings.map(e => e.chunk_id));
 
     // Insert embeddings into Milvus
     await milvus.batchInsert(allEmbeddings, 0);

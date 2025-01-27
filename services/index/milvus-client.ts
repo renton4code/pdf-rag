@@ -155,6 +155,7 @@ class Milvus {
         fields_data: insertDatas,
         collection_name: COLLECTION_NAME,
       });
+
       // Update the progress
       this._insert_progress = Math.floor((endIndex / total) * 100);
 
