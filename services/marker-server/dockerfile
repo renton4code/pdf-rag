@@ -1,0 +1,39 @@
+# Use a base Python image
+FROM python:3.10-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Create and set the working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry
+RUN curl -sSL https://install.python-poetry.org | python3 -
+
+# Add Poetry to PATH and verify installation
+ENV PATH="/root/.local/bin:$PATH"
+RUN poetry --version
+
+# Clone the GitHub repository
+RUN git clone https://github.com/VikParuchuri/marker.git /app
+
+# Install Python dependencies using Poetry
+# Skip virtualenv creation (to avoid issues inside the Docker container)
+RUN poetry config virtualenvs.create false \
+    && cd /app \
+    && poetry install --no-interaction --no-ansi
+
+# Expose the desired port(s)
+EXPOSE 8001
+
+# Change the CMD to use the startup script
+CMD ["python", "-m", "marker_server", "--host", "0.0.0.0", "--port", "8001"]

@@ -1,0 +1,14 @@
+FROM postgres:latest
+
+ENV POSTGRES_DB=legal-agent
+ENV POSTGRES_HOST_AUTH_METHOD=trust
+
+# Create init.sql with table creation
+RUN echo "CREATE TABLE documents ( \
+    id SERIAL PRIMARY KEY, \
+    content BYTEA NOT NULL, \
+    name VARCHAR(255) NOT NULL, \
+    format VARCHAR(50) NOT NULL \
+);" > /docker-entrypoint-initdb.d/init.sql
+
+EXPOSE 5432

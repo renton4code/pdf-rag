@@ -1,0 +1,16 @@
+{
+  "name": "query",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@huggingface/transformers": "^3.3.2",
+    "@zilliz/milvus2-sdk-node": "^2.5.4"
+  }
+}
