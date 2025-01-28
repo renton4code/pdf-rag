@@ -22,7 +22,7 @@ const server = Bun.serve({
       // List documents
       if (url.pathname === "/documents" && request.method === "GET") {
         const documents = await Bun.sql(`
-          SELECT id, name, format 
+          SELECT id, name, status, format 
           FROM documents 
           ORDER BY name ASC
         `);
@@ -66,10 +66,9 @@ const server = Bun.serve({
         await Bun.sql(`DELETE FROM documents WHERE id = $1`, [id]);
         
         // Delete from Milvus
-        // TODO: Delete is not working, because id from postgres is not the same as id from milvus
         const res = await milvus.getClient()?.delete({
           collection_name: "documents",
-          filter: `document_id == ${id}`,
+          filter: `document_id == '${id}'`,
         });
 
         return new Response(null, { status: 204, headers: corsHeaders });

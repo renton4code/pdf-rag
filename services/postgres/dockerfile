@@ -5,10 +5,11 @@ ENV POSTGRES_HOST_AUTH_METHOD=trust
 
 # Create init.sql with table creation
 RUN echo "CREATE TABLE documents ( \
-    id SERIAL PRIMARY KEY, \
+    id UUID PRIMARY KEY, \
     content BYTEA NOT NULL, \
     name VARCHAR(255) NOT NULL, \
-    format VARCHAR(50) NOT NULL \
+    format VARCHAR(50) NOT NULL, \
+    status VARCHAR(50) NOT NULL \
 );" > /docker-entrypoint-initdb.d/init.sql
 
 EXPOSE 5432

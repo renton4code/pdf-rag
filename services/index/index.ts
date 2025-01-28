@@ -1,5 +1,13 @@
 import { Embedder } from "./embedder";
+import { ParsePDF } from "./marker-client";
 import { milvus } from "./milvus-client";
+
+const STATUSES = {
+  PENDING: "pending",
+  PROCESSING: "processing",
+  COMPLETED: "completed",
+  FAILED: "failed",
+}
 
 const server = Bun.serve({
   port: 3021,
@@ -16,32 +24,50 @@ const server = Bun.serve({
       return new Response("No file provided", { status: 400 });
     }
 
-    // Forward file to marker server
-    const markerFormData = new FormData();
-    // TODO: solve timeout issue when OCR is enabled
-    markerFormData.append("force_ocr", "false");
-    markerFormData.append("paginate_output", "true");
-    markerFormData.append("output_format", "markdown");
-    markerFormData.append("file", fileEntry);
+    const document_id = Bun.randomUUIDv7();
+    const fileBuffer = await fileEntry.arrayBuffer();
 
-    const markerResponse = await fetch("http://localhost:8001/marker/upload", {
-      method: "POST",
-      body: markerFormData
-    });
+    await Bun.sql`
+    INSERT INTO documents (id, content, name, format, status) 
+      VALUES (${document_id}, ${Buffer.from(fileBuffer)}, ${fileEntry.name}, ${fileEntry.type}, ${STATUSES.PENDING})
+    `;
+    console.log("Inserted document into Postgres!");
 
-    const { output, success } = await markerResponse.json();
-    if (!success) {
-      return new Response("Failed to parse file", { status: 200 });
-    }
+    spawnIndexJob(document_id, fileEntry);
 
-    const cleanedOutput = output
+    return new Response(JSON.stringify({ document_id }), { status: 200 });
+  },
+});
+
+console.log(`Listening on localhost:${server.port}`);
+
+
+async function spawnIndexJob(document_id: string, file: File) {
+  await Bun.sql`
+    UPDATE documents 
+    SET status = ${STATUSES.PROCESSING}
+    WHERE id = ${document_id}
+  `;
+
+  // Forward file to marker server
+  const { output, success } = await ParsePDF(document_id, file);
+
+  if (!success) {
+    await Bun.sql`
+      UPDATE documents 
+      SET status = ${STATUSES.FAILED}
+      WHERE id = ${document_id}
+    `;
+    return;
+  }
+
+  const cleanedOutput = output
       .split("\n")
       .filter((line: string) => line.trim() !== "")
       .filter((line: string) => !line.startsWith("![]")) // Remove images
       .join("\n");
 
-    console.log("Parsed document:", cleanedOutput);
-    const document_id = Bun.randomUUIDv7();
+    console.log("Document was parsed");
 
     // Split document into chunks
     const chunkSize = 512;
@@ -89,24 +115,16 @@ const server = Bun.serve({
       })
     );
 
-    console.log("Generated embeddings for all chunks:", allEmbeddings.map(e => e.chunk_id));
+    console.log(`Generated embeddings for all chunks: length=${allEmbeddings.length}, dim=${allEmbeddings[0].chunk_embedding.length}`);
 
     // Insert embeddings into Milvus
     await milvus.batchInsert(allEmbeddings, 0);
 
     console.log("Inserted embeddings into Milvus!");
 
-    // Insert document into Postgres
-    const fileBuffer = await fileEntry.arrayBuffer();
     await Bun.sql`
-      INSERT INTO documents (content, name, format) 
-      VALUES (${Buffer.from(fileBuffer)}, ${fileEntry.name}, ${fileEntry.type})
+      UPDATE documents 
+      SET status = ${STATUSES.COMPLETED}
+      WHERE id = ${document_id}
     `;
-
-    console.log("Inserted document into Postgres!");
-
-    return new Response(JSON.stringify(allEmbeddings), { status: 200 });
-  },
-});
-
-console.log(`Listening on localhost:${server.port}`);
+}

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { FileText, Upload, Loader2, Trash } from 'lucide-react';
+import { FileText, Upload, Loader2, Trash, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -18,6 +18,13 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { PDFViewer } from '@/components/PDFViewer';
 
+const STATUSES = {
+  PENDING: "pending",
+  PROCESSING: "processing",
+  COMPLETED: "completed",
+  FAILED: "failed",
+}
+
 // Update DocumentListProps
 type DocumentListProps = {
   activePage: number | null;
@@ -27,6 +34,7 @@ type DocumentListProps = {
 interface Document {
   id: string;
   name: string;
+  status: string;
   format: string;
 }
 
@@ -39,9 +47,18 @@ export function DocumentList({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  // Fetch documents on component mount
+  // Fetch documents on component mount and every 5 seconds
   useEffect(() => {
+    // Initial fetch
     fetchDocuments();
+
+    // Set up polling interval
+    const interval = setInterval(() => {
+      fetchDocuments();
+    }, 5000);
+
+    // Clean up interval on unmount
+    return () => clearInterval(interval);
   }, []);
 
   const fetchDocuments = async () => {
@@ -140,6 +157,38 @@ export function DocumentList({
     e.preventDefault();
   };
 
+  const getStatus = (status: string) => {
+    if (status === STATUSES.PENDING) {
+      return (
+        <div className="flex items-center gap-2">
+          <Clock className="h-4 w-4" />
+          <span>Pending</span>
+        </div>
+      );
+    } else if (status === STATUSES.PROCESSING) {
+      return (
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Processing</span>
+        </div>
+      );
+    } else if (status === STATUSES.COMPLETED) {
+      return (
+        <div className="flex items-center gap-2">
+          <CheckCircle className="h-4 w-4 text-green-500" />
+          <span>Completed</span>
+        </div>
+      );
+    } else {
+      return (
+        <div className="flex items-center gap-2">
+          <XCircle className="h-4 w-4 text-red-500" />
+          <span>Failed</span>
+        </div>
+      );
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div
@@ -175,7 +224,7 @@ export function DocumentList({
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
-            <TableHead>Uploaded</TableHead>
+            <TableHead>Index Status</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -183,7 +232,7 @@ export function DocumentList({
           {documents.map((doc) => (
             <TableRow key={doc.id}>
               <TableCell className="font-medium">{doc.name}</TableCell>
-              <TableCell>{doc.uploadedAt}</TableCell>
+              <TableCell>{getStatus(doc.status)}</TableCell>
               <TableCell>
                 <Button
                   variant="ghost"
