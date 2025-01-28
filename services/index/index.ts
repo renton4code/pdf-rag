@@ -33,7 +33,10 @@ const server = Bun.serve({
     `;
     console.log("Inserted document into Postgres!");
 
-    spawnIndexJob(document_id, fileEntry);
+    const url = new URL(request.url);
+    const forceOCR = url.searchParams.get("force_ocr") === "true";
+
+    spawnIndexJob(document_id, fileEntry, forceOCR);
 
     return new Response(JSON.stringify({ document_id }), { status: 200 });
   },
@@ -42,7 +45,7 @@ const server = Bun.serve({
 console.log(`Listening on localhost:${server.port}`);
 
 
-async function spawnIndexJob(document_id: string, file: File) {
+async function spawnIndexJob(document_id: string, file: File, forceOCR: boolean) {
   await Bun.sql`
     UPDATE documents 
     SET status = ${STATUSES.PROCESSING}
@@ -50,7 +53,7 @@ async function spawnIndexJob(document_id: string, file: File) {
   `;
 
   // Forward file to marker server
-  const { output, success } = await ParsePDF(document_id, file);
+  const { output, success } = await ParsePDF(document_id, file, forceOCR);
 
   if (!success) {
     await Bun.sql`

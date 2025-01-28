@@ -83,8 +83,10 @@ const server = Bun.serve({
           return new Response("No file provided", { status: 400, headers: corsHeaders });
         }
 
+        const forceOCR = url.searchParams.get("force_ocr") === "true";
+
         // Forward to indexing service
-        const indexResponse = await fetch("http://localhost:3021", {
+        const indexResponse = await fetch(`http://localhost:3021${forceOCR ? "?force_ocr=true" : ""}`, {
           method: "POST",
           body: formData,
         });

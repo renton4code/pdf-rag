@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { FileText, Upload, Loader2, Trash, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { FileText, Upload, Loader2, Trash, Clock, CheckCircle, XCircle, ScanEye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -44,6 +46,7 @@ export function DocumentList({
   const [documents, setDocuments] = useState<Document[]>([]);
   const [uploading, setUploading] = useState(false);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
+  const [forceOCR, setForceOCR] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -82,7 +85,12 @@ export function DocumentList({
       const formData = new FormData();
       formData.append('file', files[0]);
 
-      const response = await fetch('http://localhost:3023/documents', {
+      const url = new URL('http://localhost:3023/documents');
+      if (forceOCR) {
+        url.searchParams.append('force_ocr', 'true');
+      }
+
+      const response = await fetch(url.toString(), {
         method: 'POST',
         body: formData,
       });
@@ -216,6 +224,17 @@ export function DocumentList({
             <Button onClick={() => fileInputRef.current?.click()}>
               Select Files
             </Button>
+            <div className="flex items-center space-x-2 mt-4">
+              <Switch
+                id="force-ocr"
+                checked={forceOCR}
+                onCheckedChange={setForceOCR}
+              />
+              <Label htmlFor="force-cv" className="flex items-center gap-2">
+                <ScanEye className="h-4 w-4" />
+                Force OCR (slow)
+              </Label>
+            </div>
           </div>
         )}
       </div>
