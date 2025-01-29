@@ -12,4 +12,19 @@ RUN echo "CREATE TABLE documents ( \
     status VARCHAR(50) NOT NULL \
 );" > /docker-entrypoint-initdb.d/init.sql
 
+RUN echo "CREATE TABLE chats ( \
+    id UUID PRIMARY KEY, \
+    name VARCHAR(255) NOT NULL, \
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP \
+);" >> /docker-entrypoint-initdb.d/init.sql
+
+RUN echo "CREATE TABLE messages ( \
+    id UUID PRIMARY KEY, \
+    chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE, \
+    content TEXT NOT NULL, \
+    role VARCHAR(50) NOT NULL, \
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP \
+);" >> /docker-entrypoint-initdb.d/init.sql
+
+
 EXPOSE 5432

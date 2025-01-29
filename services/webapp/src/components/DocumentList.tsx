@@ -30,6 +30,8 @@ const STATUSES = {
 // Update DocumentListProps
 type DocumentListProps = {
   activePage: number | null;
+  activeDocumentId: string | null;
+  setActiveDocumentId: (id: string | null) => void;
 };
 
 // Update the mock data section with real data fetching
@@ -42,10 +44,11 @@ interface Document {
 
 export function DocumentList({
   activePage,
+  activeDocumentId,
+  setActiveDocumentId
 }: DocumentListProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [forceOCR, setForceOCR] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -280,7 +283,7 @@ export function DocumentList({
         </TableBody>
       </Table>
 
-      <Dialog open={activeDocumentId !== null} onOpenChange={() => { setActiveDocumentId(null); }}>
+      <Dialog open={!!activeDocumentId} onOpenChange={() => { setActiveDocumentId(null); }}>
         <DialogContent className="max-w-4xl h-[95vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
@@ -288,12 +291,12 @@ export function DocumentList({
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 bg-muted rounded-lg overflow-hidden">
-            {activeDocumentId && (
+            {activeDocumentId && documents.length > 0 ? (
               <PDFViewer 
                 url={`http://localhost:3023/documents/${documents.find(doc => doc.id === activeDocumentId)?.id}`} 
                 initialPage={activePage || 1}
               />
-            )}
+            ) : null}
           </div>
         </DialogContent>
       </Dialog>

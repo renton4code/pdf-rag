@@ -79,12 +79,22 @@ async function spawnIndexJob(document_id: string, file: File, forceOCR: boolean)
     
     let startIndex = 0;
     while (startIndex < cleanedOutput.length) {
-      const chunk = cleanedOutput.slice(
-        startIndex,
-        Math.min(startIndex + chunkSize, cleanedOutput.length)
-      );
+      // Find the end of the last complete word within or after chunk size
+      let endIndex = Math.min(startIndex + chunkSize, cleanedOutput.length);
+      if (endIndex < cleanedOutput.length) {
+        while (endIndex < cleanedOutput.length && cleanedOutput[endIndex] !== ' ') {
+          endIndex++;
+        }
+      }
+      
+      const chunk = cleanedOutput.slice(startIndex, endIndex);
       chunks.push(chunk);
+      
+      // Move start to maintain overlap, but ensure we start at a word boundary
       startIndex += chunkSize - overlap;
+      while (startIndex > 0 && cleanedOutput[startIndex - 1] !== ' ') {
+        startIndex--;
+      }
     }
 
     console.log(`Split into ${chunks.length} chunks`);

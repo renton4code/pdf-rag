@@ -1,12 +1,195 @@
 import { milvus } from "../index/milvus-client";
 
+// Endpoint handlers
+async function listDocuments(corsHeaders: Record<string, string>) {
+  const documents = await Bun.sql(`
+    SELECT id, name, status, format 
+    FROM documents 
+    ORDER BY name ASC
+  `);
+
+  return new Response(JSON.stringify(documents), {
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+async function getDocument(id: string, corsHeaders: Record<string, string>) {
+  const [document] = await Bun.sql`
+    SELECT content, name, format 
+    FROM documents 
+    WHERE id = ${id}
+  `;
+
+  if (!document || !document.content || document.content.length === 0) {
+    return new Response("Document not found", {
+      status: 404,
+      headers: corsHeaders,
+    });
+  }
+
+  return new Response(document.content, {
+    headers: {
+      ...corsHeaders,
+      "Content-Type": document.format,
+      "Content-Disposition": `attachment; filename="${document.name}"`,
+    },
+  });
+}
+
+async function deleteDocument(id: string, corsHeaders: Record<string, string>) {
+  // Delete from Postgres
+  await Bun.sql(`DELETE FROM documents WHERE id = $1`, [id]);
+
+  // Delete from Milvus
+  await milvus.getClient()?.delete({
+    collection_name: "documents",
+    filter: `document_id == '${id}'`,
+  });
+
+  return new Response(null, { status: 204, headers: corsHeaders });
+}
+
+async function uploadDocument(
+  formData: FormData,
+  forceOCR: boolean,
+  corsHeaders: Record<string, string>
+) {
+  const file = formData.get("file");
+
+  if (!file || !(file instanceof File)) {
+    return new Response("No file provided", {
+      status: 400,
+      headers: corsHeaders,
+    });
+  }
+
+  // Forward to indexing service
+  const indexResponse = await fetch(
+    `http://localhost:3021${forceOCR ? "?force_ocr=true" : ""}`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  if (!indexResponse.ok) {
+    return new Response("Failed to process document", {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
+
+  return new Response(JSON.stringify({ success: true }), {
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+async function getChats(corsHeaders: Record<string, string>) {
+  const chats = await Bun.sql(`
+    SELECT id, name, created_at 
+    FROM chats 
+    ORDER BY created_at DESC
+  `);
+
+  return new Response(JSON.stringify(chats), {
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+async function getMessages(
+  chatId: string,
+  corsHeaders: Record<string, string>
+) {
+  let messages = [];
+  if (chatId !== "new") {
+    messages = await Bun.sql(`
+      SELECT id, role, content, created_at 
+      FROM messages 
+      WHERE chat_id = '${chatId}'
+      ORDER BY created_at ASC
+    `);
+  }
+
+  return new Response(JSON.stringify(messages), {
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+async function postMessage(
+  message: string,
+  chatId: string,
+  corsHeaders: Record<string, string>
+) {
+  if (chatId === "new") {
+    const chatRowData = {
+      id: Bun.randomUUIDv7(),
+      name: `${message.slice(0, 20)}...`,
+    };
+    chatId = chatRowData.id;
+    await Bun.sql`INSERT INTO chats ${Bun.sql(chatRowData)}`;
+  }
+
+  const userMessageRowData = {
+    id: Bun.randomUUIDv7(),
+    chat_id: chatId,
+    content: message,
+    role: "user",
+  };
+
+  await Bun.sql`INSERT INTO messages ${Bun.sql(userMessageRowData)}`;
+
+  const queryResponse = await makeQuery(message, corsHeaders);
+
+  const assistantMessageRowData = {
+    id: Bun.randomUUIDv7(),
+    chat_id: chatId,
+    content: JSON.stringify(queryResponse),
+    role: "assistant",
+  };
+
+  console.log(JSON.stringify(assistantMessageRowData));
+
+  const [assistantMessage] = await Bun.sql`INSERT INTO messages ${Bun.sql(
+    assistantMessageRowData
+  )} RETURNING *`;
+
+  return new Response(JSON.stringify(assistantMessage), {
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+async function makeQuery(query: string, corsHeaders: Record<string, string>) {
+  const response = await fetch("http://localhost:3022", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query }),
+  });
+  return response.json();
+}
 
 const server = Bun.serve({
   port: 3023,
   async fetch(request) {
     try {
       const url = new URL(request.url);
-      
+
       // CORS headers for development
       const corsHeaders = {
         "Access-Control-Allow-Origin": "*",
@@ -19,91 +202,42 @@ const server = Bun.serve({
         return new Response(null, { headers: corsHeaders });
       }
 
-      // List documents
+      // Route requests to handlers
       if (url.pathname === "/documents" && request.method === "GET") {
-        const documents = await Bun.sql(`
-          SELECT id, name, status, format 
-          FROM documents 
-          ORDER BY name ASC
-        `);
-        
-        return new Response(JSON.stringify(documents), {
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        });
+        return listDocuments(corsHeaders);
       }
 
-      // Get single document
       if (url.pathname.startsWith("/documents/") && request.method === "GET") {
         const id = url.pathname.split("/")[2];
-        const [document] = await Bun.sql`
-          SELECT content, name, format 
-          FROM documents 
-          WHERE id = ${id}
-        `;
-
-        if (!document || !document.content || document.content.length === 0) {
-          return new Response("Document not found", { status: 404, headers: corsHeaders });
-        }
-
-
-        return new Response(document.content, {
-          headers: {
-            ...corsHeaders,
-            "Content-Type": document.format,
-            "Content-Disposition": `attachment; filename="${document.name}"`,
-          },
-        });
+        return getDocument(id, corsHeaders);
       }
 
-      // Delete document
-      if (url.pathname.startsWith("/documents/") && request.method === "DELETE") {
+      if (
+        url.pathname.startsWith("/documents/") &&
+        request.method === "DELETE"
+      ) {
         const id = url.pathname.split("/")[2];
-        
-        // Delete from Postgres
-        await Bun.sql(`DELETE FROM documents WHERE id = $1`, [id]);
-        
-        // Delete from Milvus
-        const res = await milvus.getClient()?.delete({
-          collection_name: "documents",
-          filter: `document_id == '${id}'`,
-        });
-
-        return new Response(null, { status: 204, headers: corsHeaders });
+        return deleteDocument(id, corsHeaders);
       }
 
-      // Upload document
       if (url.pathname === "/documents" && request.method === "POST") {
         const formData = await request.formData();
-        const file = formData.get("file");
-
-        if (!file || !(file instanceof File)) {
-          return new Response("No file provided", { status: 400, headers: corsHeaders });
-        }
-
         const forceOCR = url.searchParams.get("force_ocr") === "true";
+        return uploadDocument(formData, forceOCR, corsHeaders);
+      }
 
-        // Forward to indexing service
-        const indexResponse = await fetch(`http://localhost:3021${forceOCR ? "?force_ocr=true" : ""}`, {
-          method: "POST",
-          body: formData,
-        });
+      if (url.pathname === "/chats" && request.method === "GET") {
+        return getChats(corsHeaders);
+      }
 
-        if (!indexResponse.ok) {
-          return new Response("Failed to process document", { 
-            status: 500, 
-            headers: corsHeaders 
-          });
-        }
+      if (url.pathname.startsWith("/messages/") && request.method === "GET") {
+        const chatId = url.pathname.split("/")[2];
+        return getMessages(chatId, corsHeaders);
+      }
 
-        return new Response(JSON.stringify({ success: true }), {
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        });
+      if (url.pathname === "/messages" && request.method === "POST") {
+        const { message, chatId } = await request.json();
+        return postMessage(message, chatId, corsHeaders);
       }
 
       return new Response("Not found", { status: 404, headers: corsHeaders });
@@ -114,4 +248,4 @@ const server = Bun.serve({
   },
 });
 
-console.log(`BFF service listening on http://localhost:${server.port}`); 
+console.log(`BFF service listening on http://localhost:${server.port}`);

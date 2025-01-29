@@ -15,6 +15,7 @@ function App() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [activePage, setActivePage] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState("documents");
 
   return (
     <div className="min-h-screen bg-background w-full">
@@ -31,7 +32,7 @@ function App() {
       </header>
 
       <main className="px-6 py-6">
-        <Tabs defaultValue="documents" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="documents" className="space-y-4">
           <TabsList>
             <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="chats">Chats</TabsTrigger>
@@ -41,6 +42,7 @@ function App() {
             <DocumentList
               companyId={selectedCompany?.id}
               activeDocumentId={activeDocumentId}
+              setActiveDocumentId={setActiveDocumentId}
               activePage={activePage}
               onClose={() => {
                 setActiveDocumentId(null);
@@ -55,6 +57,7 @@ function App() {
               onDocumentReference={(documentId, page) => {
                 setActiveDocumentId(documentId);
                 setActivePage(page);
+                setActiveTab("documents");
               }}
             />
           </TabsContent>
