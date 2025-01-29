@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Send, PlusCircle, BookOpen } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Send, PlusCircle, BookOpen, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -26,20 +26,19 @@ type Chat = {
 type Message = {
   id: string;
   role: string;
-  content:
-    | {
-        text: string;
-        references: {
-          documentId: string;
-          page: string;
-          text: string;
-        }[];
-      }
-    | string;
+  content: {
+    text: string;
+    references: {
+      documentId: string;
+      page: string;
+      text: string;
+    }[];
+  };
   created_at: string;
 };
 
 export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
+  const [isLoading, setIsLoading] = useState(false);
   const [chats, setChats] = useState<Chat[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -47,6 +46,7 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const { toast } = useToast();
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchChats();
@@ -61,15 +61,15 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch('http://localhost:3023/documents');
+      const response = await fetch("http://localhost:3023/documents");
       const data = await response.json();
       setDocuments(data);
     } catch (error) {
-      console.error('Error fetching documents:', error);
+      console.error("Error fetching documents:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to fetch documents',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to fetch documents",
+        variant: "destructive",
       });
     }
   };
@@ -89,40 +89,45 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
     }
   };
 
+  const parseMessage = (msg: any): Message => {
+    let content;
+    if (msg.role === "user") {
+      content = {
+        text: msg.content,
+        references: [],
+      };
+    } else {
+      const llmResponse = JSON.parse(msg.content);
+      if (typeof llmResponse.llmResponse === "string") {
+        llmResponse.llmResponse = JSON.parse(llmResponse.llmResponse);
+      }
+      content = {
+        text: llmResponse.llmResponse.text,
+        references: [],
+      };
+      const references = llmResponse.searchResults
+        .filter((_: never, index: number) =>
+          llmResponse.llmResponse.references.includes(index)
+        )
+        .map((result: any) => ({
+          documentId: result.$meta.document_id,
+          page: +result.$meta.page_id,
+          text: result.$meta.chunk_text,
+        }))
+        .sort((a: any, b: any) => a.page - b.page);
+      content.references = references;
+    }
+    return {
+      ...msg,
+      content,
+    };
+  };
+
   const fetchMessages = async (chatId: string) => {
     try {
       const response = await fetch(`http://localhost:3023/messages/${chatId}`);
       const data = await response.json();
-      setMessages(
-        data.map((msg) => {
-          let content;
-          if (msg.role === "user") {
-            content = {
-              text: msg.content,
-              references: [],
-            };
-          } else {
-            const llmResponse = JSON.parse(msg.content);
-            llmResponse.llmResponse = JSON.parse(llmResponse.llmResponse);
-            content = {
-              text: llmResponse.llmResponse.text,
-              references: [],
-            }
-            const references = llmResponse.searchResults
-              .filter((_: never, index: number) => llmResponse.llmResponse.references.includes(index))
-              .map((result: any) => ({
-                documentId: result.$meta.document_id,
-                page: +result.$meta.page_id,
-                text: result.$meta.chunk_text
-              }));
-            content.references = references;
-          }
-          return {
-            ...msg,
-            content,
-          };
-        })
-      );
+      setMessages(data.map(parseMessage));
     } catch (error) {
       toast({
         title: "Error",
@@ -135,6 +140,20 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
 
   const handleSendMessage = async () => {
     try {
+      setIsLoading(true);
+      const messagesWithQuery = [
+        ...messages,
+        {
+          id: (messages.length + 1).toString(),
+          role: "user",
+          content: {
+            text: input,
+            references: [],
+          },
+          created_at: new Date().toISOString(),
+        },
+      ];
+      setMessages(messagesWithQuery);
       const response = await fetch("http://localhost:3023/messages", {
         method: "POST",
         headers: {
@@ -144,7 +163,8 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
       });
       const data = await response.json();
 
-      setMessages([...messages, data]);
+      setMessages([...messagesWithQuery, parseMessage(data)]);
+
       setInput("");
     } catch (error) {
       toast({
@@ -153,6 +173,8 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
         variant: "destructive",
       });
       console.error("Error sending message:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -229,12 +251,21 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
       </Card>
 
       <Card>
-        <CardContent className="p-6 flex flex-col h-full">
-          <ScrollArea className="flex-1 pr-4 mb-4">
+        <CardContent className="p-6 flex flex-col h-[calc(100vh-12rem)]">
+          <ScrollArea ref={scrollAreaRef} className="flex-1 pr-4 mb-4">
             <div className="space-y-4">
-              {messages.map((message) => (
+              {messages.map((message, index) => (
                 <div
                   key={message.id}
+                  ref={
+                    index === messages.length - 1
+                      ? (el) =>
+                          el?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "end",
+                          })
+                      : undefined
+                  }
                   className={`flex ${
                     message.role === "user" ? "justify-end" : "justify-start"
                   }`}
@@ -258,21 +289,45 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
                         ...{ref.text}...
                         <span className="mt-2 flex items-center gap-1 text-muted-foreground">
                           <BookOpen className="h-4 w-4" />
-                          Page {ref.page} of {documents.find((doc) => doc.id === ref.documentId)?.name}
+                          Page {ref.page} of{" "}
+                          {
+                            documents.find((doc) => doc.id === ref.documentId)
+                              ?.name
+                          }
                         </span>
                       </div>
                     ))}
-                    <div className="text-xs mt-1 opacity-70">
+                    <div className="text-xs mt-3 opacity-70">
                       {new Date(message.created_at).toLocaleString()}
                     </div>
                   </div>
                 </div>
               ))}
+              {isLoading && (
+                <div
+                  ref={(el) =>
+                    el?.scrollIntoView({ behavior: "smooth", block: "end" })
+                  }
+                  className="flex justify-start rounded-lg p-4 max-w-[80%] bg-muted"
+                >
+                  <div className="flex flex-col gap-2 w-full">
+                    <div className="h-4 animate-pulse bg-muted-foreground/20 rounded w-[70%] mb-2" />
+                    <div className="h-4 animate-pulse bg-muted-foreground/20 rounded w-[40%] mb-2" />
+                    <div className="h-4 animate-pulse bg-muted-foreground/20 rounded w-[80%]" />
+                    <div className="mt-2 p-2 bg-white rounded cursor-pointer text-xs shadow-sm hover:shadow-md transition-shadow">
+                      <div className="h-2 animate-pulse bg-muted-foreground/20 rounded w-[50%] mb-2" />
+                      <div className="h-2 animate-pulse bg-muted-foreground/20 rounded w-[75%] mb-2" />
+                      <div className="h-2 animate-pulse bg-muted-foreground/20 rounded w-[30%]" />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </ScrollArea>
 
           <div className="flex gap-2">
             <Input
+              disabled={isLoading}
               placeholder="Type your message..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -283,8 +338,16 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
                 }
               }}
             />
-            <Button onClick={handleSendMessage} size="icon">
-              <Send className="h-4 w-4" />
+            <Button
+              onClick={handleSendMessage}
+              size="icon"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </CardContent>
