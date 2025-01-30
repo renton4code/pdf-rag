@@ -79,21 +79,43 @@ async function spawnIndexJob(document_id: string, file: File, forceOCR: boolean)
     
     let startIndex = 0;
     while (startIndex < cleanedOutput.length) {
+      console.log(`Processing chunk ${startIndex} to ${startIndex + chunkSize}`);
       // Find the end of the last complete word within or after chunk size
       let endIndex = Math.min(startIndex + chunkSize, cleanedOutput.length);
       if (endIndex < cleanedOutput.length) {
-        while (endIndex < cleanedOutput.length && cleanedOutput[endIndex] !== ' ') {
+        // Limit the search for word boundary to prevent infinite loops
+        const maxSearchDistance = 50; // Maximum characters to look ahead
+        let searchCount = 0;
+        while (endIndex < cleanedOutput.length && 
+               cleanedOutput[endIndex] !== ' ' && 
+               searchCount < maxSearchDistance) {
           endIndex++;
+          searchCount++;
+        }
+        // If we couldn't find a space, force a break
+        if (searchCount >= maxSearchDistance) {
+          endIndex = Math.min(startIndex + chunkSize, cleanedOutput.length);
         }
       }
       
       const chunk = cleanedOutput.slice(startIndex, endIndex);
       chunks.push(chunk);
       
-      // Move start to maintain overlap, but ensure we start at a word boundary
-      startIndex += chunkSize - overlap;
-      while (startIndex > 0 && cleanedOutput[startIndex - 1] !== ' ') {
-        startIndex--;
+      // Ensure we always make forward progress
+      const newStart = startIndex + chunkSize - overlap;
+      if (newStart <= startIndex) {
+        startIndex += chunkSize; // Force progress if overlap would cause us to stay in place
+      } else {
+        startIndex = newStart;
+        // Look for word boundary, but don't go backwards too far
+        const maxBackwardSearch = 20;
+        let backwardCount = 0;
+        while (startIndex > 0 && 
+               cleanedOutput[startIndex - 1] !== ' ' && 
+               backwardCount < maxBackwardSearch) {
+          startIndex--;
+          backwardCount++;
+        }
       }
     }
 
