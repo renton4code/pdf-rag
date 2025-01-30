@@ -130,6 +130,7 @@ async function getMessages(
 async function postMessage(
   message: string,
   chatId: string,
+  documents: string[],
   corsHeaders: Record<string, string>
 ) {
   if (chatId === "new") {
@@ -150,7 +151,7 @@ async function postMessage(
 
   await Bun.sql`INSERT INTO messages ${Bun.sql(userMessageRowData)}`;
 
-  const queryResponse = await makeQuery(message, corsHeaders);
+  const queryResponse = await makeQuery(message, documents, corsHeaders);
 
   const assistantMessageRowData = {
     id: Bun.randomUUIDv7(),
@@ -173,13 +174,17 @@ async function postMessage(
   });
 }
 
-async function makeQuery(query: string, corsHeaders: Record<string, string>) {
+async function makeQuery(
+  query: string,
+  documents: string[],
+  corsHeaders: Record<string, string>
+) {
   const response = await fetch("http://localhost:3022", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({ query, documents }),
   });
   return response.json();
 }
@@ -236,8 +241,8 @@ const server = Bun.serve({
       }
 
       if (url.pathname === "/messages" && request.method === "POST") {
-        const { message, chatId } = await request.json();
-        return postMessage(message, chatId, corsHeaders);
+        const { message, chatId, documents } = await request.json();
+        return postMessage(message, chatId, documents, corsHeaders);
       }
 
       return new Response("Not found", { status: 404, headers: corsHeaders });

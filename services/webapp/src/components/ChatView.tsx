@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Send, PlusCircle, BookOpen, Loader2 } from "lucide-react";
+import { Send, PlusCircle, BookOpen, Loader2, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -11,6 +11,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandInput,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from "@/components/ui/command";
+import { Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type ChatViewProps = {
   companyId?: string;
@@ -42,6 +56,8 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [input, setInput] = useState("");
@@ -56,6 +72,8 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
   useEffect(() => {
     if (selectedChat && selectedChat !== "new") {
       fetchMessages(selectedChat);
+    } else if (selectedChat === "new") {
+      setMessages([]);
     }
   }, [selectedChat]);
 
@@ -98,16 +116,13 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
       };
     } else {
       const llmResponse = JSON.parse(msg.content);
-      if (typeof llmResponse.llmResponse === "string") {
-        llmResponse.llmResponse = JSON.parse(llmResponse.llmResponse);
-      }
       content = {
         text: llmResponse.llmResponse.text,
         references: [],
       };
       const references = llmResponse.searchResults
         .filter((_: never, index: number) =>
-          llmResponse.llmResponse.references.includes(index)
+          llmResponse.llmResponse.references.includes(index + 1)
         )
         .map((result: any) => ({
           documentId: result.$meta.document_id,
@@ -139,6 +154,8 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
   };
 
   const handleSendMessage = async () => {
+    if (!input) return;
+
     try {
       setIsLoading(true);
       const messagesWithQuery = [
@@ -159,7 +176,11 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: input, chatId: selectedChat }),
+        body: JSON.stringify({
+          message: input,
+          chatId: selectedChat,
+          documents: selectedDocuments,
+        }),
       });
       const data = await response.json();
 
@@ -223,30 +244,32 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {selectedChat === "new" ? (
-              <div
-                key="new"
-                className={`p-2 rounded-lg cursor-pointer bg-primary text-primary-foreground`}
-                onClick={() => setSelectedChat("new")}
-              >
-                <span className="flex gap-2 items-center">New Chat</span>
-              </div>
-            ) : null}
-            {chats.map((chat) => (
-              <div
-                key={chat.id}
-                className={`p-2 rounded-lg cursor-pointer ${
-                  chat.id === selectedChat
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-accent"
-                }`}
-                onClick={() => setSelectedChat(chat.id)}
-              >
-                {chat.name}
-              </div>
-            ))}
-          </div>
+          <ScrollArea className="h-[calc(100vh-18rem)]">
+            <div className="space-y-2">
+              {selectedChat === "new" ? (
+                <div
+                  key="new"
+                  className={`p-2 rounded-lg cursor-pointer bg-primary text-primary-foreground`}
+                  onClick={() => setSelectedChat("new")}
+                >
+                  <span className="flex gap-2 items-center">New Chat</span>
+                </div>
+              ) : null}
+              {chats.map((chat) => (
+                <div
+                  key={chat.id}
+                  className={`p-2 rounded-lg cursor-pointer ${
+                    chat.id === selectedChat
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-accent"
+                  }`}
+                  onClick={() => setSelectedChat(chat.id)}
+                >
+                  {chat.name}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         </CardContent>
       </Card>
 
@@ -261,7 +284,7 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
                     index === messages.length - 1
                       ? (el) =>
                           el?.scrollIntoView({
-                            behavior: "smooth",
+                            behavior: "instant",
                             block: "end",
                           })
                       : undefined
@@ -306,7 +329,7 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
               {isLoading && (
                 <div
                   ref={(el) =>
-                    el?.scrollIntoView({ behavior: "smooth", block: "end" })
+                    el?.scrollIntoView({ behavior: "instant", block: "end" })
                   }
                   className="flex justify-start rounded-lg p-4 max-w-[80%] bg-muted"
                 >
@@ -325,30 +348,117 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
             </div>
           </ScrollArea>
 
-          <div className="flex gap-2">
-            <Input
-              disabled={isLoading}
-              placeholder="Type your message..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-            />
-            <Button
-              onClick={handleSendMessage}
-              size="icon"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <Input
+                disabled={isLoading}
+                placeholder="Type your message..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-[200px] p-0">
+                  <Command>
+                    <CommandInput
+                      placeholder="Search documents..."
+                      value={searchQuery}
+                      onValueChange={setSearchQuery}
+                    />
+                    <CommandEmpty>No documents found.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="all"
+                        onSelect={() => setSelectedDocuments([])}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedDocuments.length === 0
+                              ? "opacity-100"
+                              : "opacity-0"
+                          )}
+                        />
+                        All Documents
+                      </CommandItem>
+                      {documents
+                        .filter((doc) =>
+                          doc.name
+                            .toLowerCase()
+                            .includes(searchQuery.toLowerCase())
+                        )
+                        .map((doc) => (
+                          <CommandItem
+                            key={doc.id}
+                            value={doc.name}
+                            onSelect={() => {
+                              setSelectedDocuments((prev) => {
+                                const next = prev.includes(doc.id)
+                                  ? prev.filter((id) => id !== doc.id)
+                                  : [...prev, doc.id];
+                                return next.length === documents.length
+                                  ? []
+                                  : next;
+                              });
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedDocuments.includes(doc.id)
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              )}
+                            />
+                            {doc.name}
+                          </CommandItem>
+                        ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <Button
+                onClick={handleSendMessage}
+                size="icon"
+                disabled={isLoading || !input}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {selectedDocuments.length === 0 ? (
+                <div className="bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm flex items-center gap-2">
+                  <BookOpen className="h-3 w-3" />
+                  All documents
+                </div>
+              ) : null}
+              {selectedDocuments.map((docId) => {
+                const doc = documents.find((d) => d.id === docId);
+                return doc ? (
+                  <div
+                    key={docId}
+                    className="bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                  >
+                    <BookOpen className="h-3 w-3" />
+                    {doc.name}
+                  </div>
+                ) : null;
+              })}
+            </div>
           </div>
         </CardContent>
       </Card>
