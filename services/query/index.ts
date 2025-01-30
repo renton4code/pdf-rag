@@ -60,8 +60,6 @@ const server = Bun.serve({
       filter: documents?.length > 0 ? `document_id in [${documents.map(d => `'${d}'`).join(",")}]` : undefined,
     };
 
-    console.log(`Searching for ${JSON.stringify(searchParams)}`);
-
     const searchResults = await milvus.search(searchParams);
 
     // Start chat session and send message
