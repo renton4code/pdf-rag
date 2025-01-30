@@ -5,7 +5,7 @@ import {
 } from "@huggingface/transformers";
 
 
-// TODO: Replace with a standalone embedding model run in docker container and Python
+// TODO: Use mixedbread-ai/mxbai-embed-large-v1 
 export class Embedder {
   static task = "feature-extraction";
   static model = "Supabase/gte-small";

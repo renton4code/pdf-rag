@@ -135,7 +135,7 @@ async function postMessage(
   if (chatId === "new") {
     const chatRowData = {
       id: Bun.randomUUIDv7(),
-      name: `${message.slice(0, 20)}...`,
+      name: `${message.slice(0, 30)}...`,
     };
     chatId = chatRowData.id;
     await Bun.sql`INSERT INTO chats ${Bun.sql(chatRowData)}`;

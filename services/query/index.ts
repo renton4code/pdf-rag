@@ -70,9 +70,11 @@ const server = Bun.serve({
     const llmResponse = await model.generateContent(prompt);
     console.log("Received response from Gemini");
 
-    const text = llmResponse.response.text();
-    const match = text.match(/```json\s*([\s\S]*?)\s*```/);
-    const structuredResponse = match ? JSON.parse(match[1]) : text;
+    const text = llmResponse.response.text().replace(/\n/g, "");
+    const match = text.match(/```json(.*?)```/s);
+    const structuredResponse = match
+      ? JSON.parse(match[1])
+      : { text: text, references: [] };
 
     return new Response(
       JSON.stringify({
