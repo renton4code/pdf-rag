@@ -1,4 +1,4 @@
-export const ParsePDF = async (document_id: string, file: File, forceOCR: boolean) => {
+export const parsePDF = async (document_id: string, file: File, forceOCR: boolean) => {
   console.log("Parsing document...");
   
   const tmpFileName = `${document_id}.${file.name.split('.').at(-1)}`;

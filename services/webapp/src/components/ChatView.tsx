@@ -28,7 +28,11 @@ import { cn } from "@/lib/utils";
 
 type ChatViewProps = {
   companyId?: string;
-  onDocumentReference: (documentId: string, page: number) => void;
+  onDocumentReference: (
+    documentId: string,
+    page: number,
+    highlight: string | null
+  ) => void;
 };
 
 type Chat = {
@@ -44,11 +48,16 @@ type Message = {
     text: string;
     references: {
       documentId: string;
-      page: string;
+      page: number;
       text: string;
     }[];
   };
   created_at: string;
+};
+
+type Document = {
+  id: string;
+  name: string;
 };
 
 export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
@@ -126,7 +135,7 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
         )
         .map((result: any) => ({
           documentId: result.$meta.document_id,
-          page: +result.$meta.page_id,
+          page: +result.$meta.page_id + 1,
           text: result.$meta.chunk_text,
         }))
         .sort((a: any, b: any) => a.page - b.page);
@@ -183,6 +192,12 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
         }),
       });
       const data = await response.json();
+
+      if (selectedChat === "new") {
+        fetchChats().then(() => {
+          setSelectedChat(data.chat_id);
+        });
+      }
 
       setMessages([...messagesWithQuery, parseMessage(data)]);
 
@@ -306,7 +321,11 @@ export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
                         key={index}
                         className="mt-2 p-2 bg-white rounded cursor-pointer text-xs shadow-sm hover:shadow-md transition-shadow"
                         onClick={() =>
-                          onDocumentReference(ref.documentId, ref.page)
+                          onDocumentReference(
+                            ref.documentId,
+                            ref.page,
+                            ref.text
+                          )
                         }
                       >
                         ...{ref.text}...

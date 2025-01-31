@@ -1,8 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
-import { FileText, Upload, Loader2, Trash, Clock, CheckCircle, XCircle, ScanEye } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+import { useState, useRef, useEffect } from "react";
+import {
+  FileText,
+  Upload,
+  Loader2,
+  Trash,
+  Clock,
+  CheckCircle,
+  XCircle,
+  ScanEye,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -10,27 +19,29 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
-import { PDFViewer } from '@/components/PDFViewer';
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { PDFViewer } from "@/components/PDFViewer";
 
 const STATUSES = {
   PENDING: "pending",
   PROCESSING: "processing",
   COMPLETED: "completed",
   FAILED: "failed",
-}
+};
 
 // Update DocumentListProps
 type DocumentListProps = {
   activePage: number | null;
   activeDocumentId: string | null;
+  highlight: string | null;
+  setHighlight: (highlight: string | null) => void;
   setActiveDocumentId: (id: string | null) => void;
 };
 
@@ -45,7 +56,9 @@ interface Document {
 export function DocumentList({
   activePage,
   activeDocumentId,
-  setActiveDocumentId
+  highlight,
+  setHighlight,
+  setActiveDocumentId,
 }: DocumentListProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -69,15 +82,15 @@ export function DocumentList({
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch('http://localhost:3023/documents');
+      const response = await fetch("http://localhost:3023/documents");
       const data = await response.json();
       setDocuments(data);
     } catch (error) {
-      console.error('Error fetching documents:', error);
+      console.error("Error fetching documents:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to fetch documents',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to fetch documents",
+        variant: "destructive",
       });
     }
   };
@@ -86,35 +99,35 @@ export function DocumentList({
     setUploading(true);
     try {
       const formData = new FormData();
-      formData.append('file', files[0]);
+      formData.append("file", files[0]);
 
-      const url = new URL('http://localhost:3023/documents');
+      const url = new URL("http://localhost:3023/documents");
       if (forceOCR) {
-        url.searchParams.append('force_ocr', 'true');
+        url.searchParams.append("force_ocr", "true");
       }
 
       const response = await fetch(url.toString(), {
-        method: 'POST',
+        method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error('Upload failed');
+        throw new Error("Upload failed");
       }
 
       toast({
-        title: 'Success',
+        title: "Success",
         description: `Uploaded ${files.length} document(s)`,
       });
-      
+
       // Refresh document list
       await fetchDocuments();
     } catch (error) {
-      console.error('Error uploading document:', error);
+      console.error("Error uploading document:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to upload document',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to upload document",
+        variant: "destructive",
       });
     } finally {
       setUploading(false);
@@ -124,22 +137,22 @@ export function DocumentList({
   const handleDelete = async (documentId: string) => {
     try {
       await fetch(`http://localhost:3023/documents/${documentId}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
-      
+
       toast({
-        title: 'Success',
-        description: 'Document deleted',
+        title: "Success",
+        description: "Document deleted",
       });
-      
+
       // Refresh document list
       await fetchDocuments();
     } catch (error) {
-      console.error('Error deleting document:', error);
+      console.error("Error deleting document:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to delete document',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to delete document",
+        variant: "destructive",
       });
     }
   };
@@ -159,7 +172,7 @@ export function DocumentList({
       await handleUpload(files);
       // Reset the input
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
@@ -198,7 +211,7 @@ export function DocumentList({
         </div>
       );
     }
-  }
+  };
 
   return (
     <div className="space-y-4">
@@ -247,22 +260,36 @@ export function DocumentList({
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Index Status</TableHead>
-            <TableHead className="w-[100px]">Actions</TableHead>
+            <TableHead className="w-[150px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {documents.map((doc) => (
             <TableRow key={doc.id}>
-              <TableCell className="font-medium">{doc.name}</TableCell>
+              <TableCell
+                title="Open document"
+                onClick={() => {
+                  toast({
+                    title: "Opening document",
+                    description: doc.name,
+                  });
+                  setActiveDocumentId(doc.id);
+                }}
+                className="font-medium cursor-pointer"
+              >
+                {doc.name}
+              </TableCell>
               <TableCell>{getStatus(doc.status)}</TableCell>
               <TableCell>
                 <Button
+                  title="Open document"
                   variant="ghost"
                   size="sm"
+                  className="mr-4"
                   onClick={() => {
                     // Simulate opening document
                     toast({
-                      title: 'Opening document',
+                      title: "Opening document",
                       description: doc.name,
                     });
                     setActiveDocumentId(doc.id);
@@ -283,17 +310,25 @@ export function DocumentList({
         </TableBody>
       </Table>
 
-      <Dialog open={!!activeDocumentId} onOpenChange={() => { setActiveDocumentId(null); }}>
+      <Dialog
+        open={!!activeDocumentId}
+        onOpenChange={() => {
+          setActiveDocumentId(null);
+          setHighlight(null);
+        }}
+      >
         <DialogContent className="max-w-4xl h-[95vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
-              {documents.find(doc => doc.id === activeDocumentId)?.name || 'Document Viewer'}
+              {documents.find((doc) => doc.id === activeDocumentId)?.name ||
+                "Document Viewer"}
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 bg-muted rounded-lg overflow-hidden">
             {activeDocumentId && documents.length > 0 ? (
-              <PDFViewer 
-                url={`http://localhost:3023/documents/${documents.find(doc => doc.id === activeDocumentId)?.id}`} 
+              <PDFViewer
+                highlight={highlight}
+                documentId={activeDocumentId}
                 initialPage={activePage || 1}
               />
             ) : null}

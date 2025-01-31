@@ -16,6 +16,7 @@ function App() {
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [activePage, setActivePage] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("documents");
+  const [highlight, setHighlight] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-background w-full">
@@ -44,6 +45,8 @@ function App() {
               activeDocumentId={activeDocumentId}
               setActiveDocumentId={setActiveDocumentId}
               activePage={activePage}
+              highlight={highlight}
+              setHighlight={setHighlight}
               onClose={() => {
                 setActiveDocumentId(null);
                 setActivePage(null);
@@ -54,9 +57,10 @@ function App() {
           <TabsContent value="chats" className="space-y-4">
             <ChatView
               companyId={selectedCompany?.id}
-              onDocumentReference={(documentId, page) => {
+              onDocumentReference={(documentId, page, highlight) => {
                 setActiveDocumentId(documentId);
                 setActivePage(page);
+                setHighlight(highlight);
                 setActiveTab("documents");
               }}
             />

@@ -160,8 +160,6 @@ async function postMessage(
     role: "assistant",
   };
 
-  console.log(JSON.stringify(assistantMessageRowData));
-
   const [assistantMessage] = await Bun.sql`INSERT INTO messages ${Bun.sql(
     assistantMessageRowData
   )} RETURNING *`;
@@ -187,6 +185,18 @@ async function makeQuery(
     body: JSON.stringify({ query, documents }),
   });
   return response.json();
+}
+
+async function getPages(document_id: string, corsHeaders: Record<string, string>) {
+  const pages = await Bun.sql(`
+    SELECT id, page_number, content 
+    FROM pages 
+    WHERE document_id = '${document_id}'
+    ORDER BY page_number ASC
+  `);
+  return new Response(JSON.stringify(pages), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
 const server = Bun.serve({
@@ -215,6 +225,11 @@ const server = Bun.serve({
       if (url.pathname.startsWith("/documents/") && request.method === "GET") {
         const id = url.pathname.split("/")[2];
         return getDocument(id, corsHeaders);
+      }
+
+      if (url.pathname.startsWith("/pages/") && request.method === "GET") {
+        const id = url.pathname.split("/")[2];
+        return getPages(id, corsHeaders);
       }
 
       if (
