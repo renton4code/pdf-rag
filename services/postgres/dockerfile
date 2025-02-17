@@ -1,6 +1,6 @@
 FROM postgres:latest
 
-ENV POSTGRES_DB=legal-agent
+ENV POSTGRES_DB=rag-db
 ENV POSTGRES_HOST_AUTH_METHOD=trust
 
 # Create init.sql with table creation

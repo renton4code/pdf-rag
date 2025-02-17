@@ -1,0 +1,108 @@
+services:
+  index:
+    build:
+      context: ./services/index
+      dockerfile: dockerfile
+    ports:
+      - "3021:3021"
+    environment:
+      - POSTGRES_URL=postgres://postgres:postgres@postgres:5432/rag-db
+      - MILVUS_URL=http://milvus:19530
+      - MARKER_SERVER_URL=http://marker-server:8001
+      - MILVUS_TOKEN=
+    depends_on:
+      postgres:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+      marker-server:
+        condition: service_started
+  marker-server:
+    build:
+      context: ./services/marker-server
+      dockerfile: dockerfile
+    ports:
+      - "8001:8001"
+  bff:
+    build:
+      context: ./services
+      dockerfile: ./bff/dockerfile
+    ports:
+      - "3023:3023"
+    environment:
+      - POSTGRES_URL=postgres://postgres:postgres@postgres:5432/rag-db
+      - MILVUS_URL=http://milvus:19530
+      - INDEX_SERVER_URL=http://index:3021
+      - QUERY_SERVER_URL=http://query:3022
+      - MILVUS_TOKEN=
+    depends_on:
+      postgres:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+  query:
+    build:
+      context: ./services
+      dockerfile: ./query/dockerfile
+    ports:
+      - "3022:3022"
+    environment:
+      - POSTGRES_URL=postgres://postgres:postgres@postgres:5432/rag-db
+      - MILVUS_URL=http://milvus:19530
+      - MILVUS_TOKEN=
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+  webapp:
+    build:
+      context: ./services/webapp
+      dockerfile: dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - HOST=0.0.0.0
+  postgres:
+    build:
+      context: ./services/postgres
+      dockerfile: dockerfile
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=rag-db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - ./volumes/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  milvus:
+    image: milvusdb/milvus:v2.5.4
+    command: ["milvus", "run", "standalone"]
+    environment:
+      - ETCD_USE_EMBED=true
+      - ETCD_DATA_DIR=/var/lib/milvus/etcd
+      - ETCD_CONFIG_PATH=/milvus/configs/embedEtcd.yaml
+      - COMMON_STORAGETYPE=local
+    volumes:
+      - ./volumes/milvus:/var/lib/milvus
+      - ./services/milvus/embedEtcd.yaml:/milvus/configs/embedEtcd.yaml
+      - ./services/milvus/user.yaml:/milvus/configs/user.yaml
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+      - "2379:2379"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 90s
+    security_opt:
+      - seccomp:unconfined
+  

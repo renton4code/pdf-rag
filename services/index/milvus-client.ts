@@ -47,16 +47,16 @@ class Milvus {
 
   // Initialize the Milvus client
   public async init() {
-    // URI is required to connect to Milvus, TOKEN is optional
-    if (!process.env.URI) {
-      throw new Error("URI is required, please check your .env file.");
+    // URL is required to connect to Milvus, TOKEN is optional
+    if (!process.env.MILVUS_URL) {
+      throw new Error("MILVUS_URL is required, please check your .env file.");
     }
 
     try {
       // Create a new Milvus client
       this._client = new MilvusClient({
-        address: process.env.URI || "",
-        token: process.env.TOKEN,
+        address: process.env.MILVUS_URL || "",
+        token: process.env.MILVUS_TOKEN,
         channelOptions: {
           // starter cluster will throw rejected by server because of excess ping, so we need to adjust the ping interval
           "grpc.keepalive_time_ms": 40000, // Adjust the time interval between pings
@@ -66,6 +66,7 @@ class Milvus {
       // Create a new collection
       return await this.createCollection();
     } catch (error) {
+      console.error("Error initializing Milvus client", JSON.stringify(error));
       throw error;
     }
   }

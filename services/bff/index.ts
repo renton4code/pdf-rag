@@ -68,7 +68,7 @@ async function uploadDocument(
 
   // Forward to indexing service
   const indexResponse = await fetch(
-    `http://localhost:3021${forceOCR ? "?force_ocr=true" : ""}`,
+    `${process.env.INDEX_SERVER_URL}${forceOCR ? "?force_ocr=true" : ""}`,
     {
       method: "POST",
       body: formData,
@@ -177,7 +177,7 @@ async function makeQuery(
   documents: string[],
   corsHeaders: Record<string, string>
 ) {
-  const response = await fetch("http://localhost:3022", {
+  const response = await fetch(`${process.env.QUERY_SERVER_URL}/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

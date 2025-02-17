@@ -1,0 +1,17 @@
+# Use the official Bun image as base
+FROM oven/bun:1
+
+# Set working directory
+WORKDIR /app
+
+# Copy service files
+COPY . . 
+
+# Install dependencies
+RUN bun install
+
+# Expose the port the app runs on
+EXPOSE 5173
+
+# Start the application
+CMD ["bun", "run", "dev", "--host", "0.0.0.0"]

@@ -1,0 +1,21 @@
+# Use the official Bun image as base
+FROM oven/bun:latest
+
+# Install system dependencies
+RUN apt update && apt install -y \
+    curl
+
+# Set working directory
+WORKDIR /app
+
+# Copy service files
+COPY . .
+
+# Install dependencies
+RUN bun install
+
+# Expose the port the app runs on
+EXPOSE 3021
+
+# Start the application
+CMD ["bun", "index.ts"]

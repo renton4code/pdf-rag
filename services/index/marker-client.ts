@@ -17,7 +17,7 @@ export const parsePDF = async (document_id: string, file: File, forceOCR: boolea
     "-F", "paginate_output=true", 
     "-F", "output_format=markdown",
     "-F", `file=@${tmpFilePath}`,
-    "http://localhost:8001/marker/upload"
+    `${process.env.MARKER_SERVER_URL}/marker/upload`
   ]);
   console.log("Document was sent to marker");
 

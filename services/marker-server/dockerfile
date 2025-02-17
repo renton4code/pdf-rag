@@ -13,8 +13,7 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     libgl1 \
-    libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
+    libglib2.0-0
 
 # Install Poetry
 RUN curl -sSL https://install.python-poetry.org | python3 -

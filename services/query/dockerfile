@@ -1,0 +1,23 @@
+# Use the official Bun image as base
+FROM oven/bun:1
+
+# Set working directory
+WORKDIR /app
+
+# Copy the index directory that contains milvus-client
+COPY ./index ./index
+
+# Copy the query service files
+COPY ./query ./query
+
+# Set working directory to the query service
+WORKDIR /app/query
+
+# Install dependencies
+RUN bun install
+
+# Expose the port the app runs on
+EXPOSE 3022
+
+# Start the application
+CMD ["bun", "index.ts"]

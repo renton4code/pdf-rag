@@ -181,6 +181,7 @@ export function PDFViewer({ documentId, initialPage = 1, highlight }: PDFViewerP
           </div>
         </TabsContent>
 
+        {/* TODO: has a bug and doesn't render after referencing from chat */}
         {!loading && numPages && (
           <div className="flex items-center gap-4 p-2 border-t">
             <Button
