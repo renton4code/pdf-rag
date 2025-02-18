@@ -7,7 +7,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 const model = genAI.getGenerativeModel({
   model: "gemini-2.0-flash-exp",
   systemInstruction:
-    "You are a corporate lawyer assistant helping a lawyer to make some analysis of documents. You're given a set of texts from these documents and a question from the lawyer. Based on ground truth from these texts try to answer the question. You should return a JSON object with the following properties: text (the answer to the question), references (indexes of most relevant texts that you used to answer the question). Do not include justification for your answer. Do not include text indexes references in your answer.",
+    "You are a helpful AI assistant. You're given a set of texts from documents and a question. Based on the provided texts, try to answer the question accurately and concisely. You should return a JSON object with the following properties: text (the answer to the question), references (indexes of most relevant texts that you used to answer the question). Do not include justification for your answer. Do not include text indexes references in your answer.",
 });
 
 // Configure generation parameters
