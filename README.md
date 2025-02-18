@@ -76,6 +76,21 @@ docker compose up --build
    - Filter documents for specific contexts
    - View document references in responses
    - Click references to view source documents
+  
+## Common Issues
+
+### Document Processing
+
+- Index step is stuck or failing with OCR: Marker consumes a lot of RAM, so make sure you have enough memory allocated to Docker. Increase RAM limit in Docker Desktop to at least 16GB.
+
+- Inacurate OCR: Marker supports LLM flag improving accuracy, you may want to add the flag to Docker comand:
+```CMD ["python", "-m", "marker_server", "--host", "0.0.0.0", "--port", "8001", "--use_llm", "--gemini_api_key" "<your-gemini-api-key>"]```
+
+### Querying
+
+- Wrong referenced page (off by one): Text chunks intentionally overlap to provide more context to LLM. It can happen that referenced text is from the previous or next page. You may want to tweak the `text2chunks` function in the `services/index/index.ts` file to change the overlap or disable it.
+
+- No results or broken references: Double check the system prompt in the `services/query/index.ts` file. JSON structure depends on the prompt, so promt changes may break the parsing of the response.
 
 ## Local Development
 
