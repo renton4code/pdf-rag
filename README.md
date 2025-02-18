@@ -14,6 +14,8 @@ A production-ready template for building Retrieval-Augmented Generation (RAG) ap
 
 ## Architecture
 
+![Architecture diagram](./workflow.png)
+
 The application is built using a microservices architecture with the following components:
 
 - **BFF (Backend for Frontend)**: API gateway handling client requests
@@ -27,7 +29,7 @@ The application is built using a microservices architecture with the following c
 ## Tech Stack
 
 - **Frontend**: React, TypeScript, Tailwind, Shadcn
-- **Backend**: Bun, Node.js
+- **Backend**: Bun
 - **Databases**: PostgreSQL, Milvus
 - **AI/ML**: Google Gemini (LLM), HuggingFace Transformers (Embeddings)
 
