@@ -12,7 +12,6 @@ export type Company = {
 };
 
 function App() {
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [activePage, setActivePage] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("documents");
@@ -20,18 +19,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background w-full">
-      <header className="border-b">
-        <div className="px-6 h-16 flex items-center justify-between">
-          <CompanySelector
-            value={selectedCompany}
-            onChange={setSelectedCompany}
-          />
-          <div className="flex items-center gap-4">
-            <UserMenu />
-          </div>
-        </div>
-      </header>
-
       <main className="px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="documents" className="space-y-4">
           <TabsList>
@@ -41,7 +28,6 @@ function App() {
 
           <TabsContent value="documents" className="space-y-4">
             <DocumentList
-              companyId={selectedCompany?.id}
               activeDocumentId={activeDocumentId}
               setActiveDocumentId={setActiveDocumentId}
               activePage={activePage}
@@ -56,7 +42,6 @@ function App() {
 
           <TabsContent value="chats" className="space-y-4">
             <ChatView
-              companyId={selectedCompany?.id}
               onDocumentReference={(documentId, page, highlight) => {
                 setActiveDocumentId(documentId);
                 setActivePage(page);

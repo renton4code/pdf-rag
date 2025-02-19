@@ -60,7 +60,7 @@ type Document = {
   name: string;
 };
 
-export function ChatView({ companyId, onDocumentReference }: ChatViewProps) {
+export function ChatView({ onDocumentReference }: ChatViewProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [chats, setChats] = useState<Chat[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
