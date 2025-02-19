@@ -5,9 +5,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash-exp",
+  model: "gemini-2.0-flash",
   systemInstruction:
-    "You are a helpful AI assistant. You're given a set of texts from documents and a question. Based on the provided texts, try to answer the question accurately and concisely. You should return a JSON object with the following properties: text (the answer to the question), references (indexes of most relevant texts that you used to answer the question). Do not include justification for your answer. Do not include text indexes references in your answer.",
+    "You are an AI assistant that can answer questions based on the provided texts. You're given a set of texts from documents and a question. Based on the provided texts, try to answer the question accurately and concisely. Do not include justification for your answer. Do not include text indexes references in your answer, but include them in the references array. You MUST follow the JSON structure: { text: 'The answer to the question', references: [1, 2, 3] }",
 });
 
 // Configure generation parameters
@@ -21,11 +21,13 @@ const generationConfig = {
     type: "object",
     properties: {
       text: {
+        description: "The answer to the question",
         type: "string",
       },
       references: {
         type: "array",
         items: {
+          description: "Indexes of the most relevant texts that you used to answer the question",
           type: "number",
         },
       },
@@ -75,9 +77,21 @@ const server = Bun.serve({
 
     const text = llmResponse.response.text().replace(/\n/g, "");
     const match = text.match(/```json(.*?)```/s);
-    const structuredResponse = match
-      ? JSON.parse(match[1])
-      : { text: text, references: [] };
+
+    let structuredResponse = { text: text, references: [] };
+    try {
+      // Clean up all escaped characters that aren't valid JSON escapes
+      const jsonText = match?.[1].replace(/\\([^"\\\/bfnrt])/g, '$1');
+      console.log("JSON text", jsonText);
+      console.log("Match 1", match?.[1]);
+      structuredResponse = match && jsonText
+        ? JSON.parse(jsonText)
+        : { text: text, references: [] };
+    } catch (e) {
+      console.error("Error parsing response", e);
+      console.error("Raw response", match?.[1]);
+    }
+    
 
     return new Response(
       JSON.stringify({
