@@ -2,6 +2,10 @@
 
 A production-ready template for building Retrieval-Augmented Generation (RAG) applications. This template provides a complete setup for document processing, vector storage, and AI-powered question answering and kickass UI.
 
+| Chat  | Document lookup with highligh  | PDF viewer | Documents list |
+| ----- | ------------------------------ | ---------- | -------------- |
+| ![Chat screenshot](./docs/assets/screen-4.png) | ![Document lookup screenshot](./docs/assets/screen-1.png) | ![PDF viewer screenshot](./docs/assets/screen-2.png) | ![Documents list ](./docs/assets/screen-3.png) |
+
 ## Features
 
 - 📄 PDF document processing with OCR
@@ -14,7 +18,7 @@ A production-ready template for building Retrieval-Augmented Generation (RAG) ap
 
 ## Architecture
 
-![Architecture diagram](./workflow.png)
+![Architecture diagram](./docs/assets/workflow.png)
 
 The application is built using a microservices architecture with the following components:
 
