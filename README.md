@@ -1,6 +1,6 @@
 # ⚡️ PDF RAG Kickstart template
 
-A production-ready template for building Retrieval-Augmented Generation (RAG) applications. This template provides a complete setup for document processing, vector storage, and AI-powered question answering and kickass UI.
+A production-ready template for building Retrieval-Augmented Generation (RAG) applications. This template provides a complete setup for document processing, vector storage, and AI-powered question answering with kickass UI.
 
 | Chat  | Document lookup with highligh  | PDF viewer | Documents list |
 | ----- | ------------------------------ | ---------- | -------------- |
